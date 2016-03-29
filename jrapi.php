@@ -10,15 +10,25 @@ class jrapi
 {
     private $_region;
     private $_url;
+    private  $_error = array(
+        '400',
+        '401',
+        '404',
+        '429',
+        '500',
+        '503',
+    );
 
     //api key
-    const API_KEY = 'YOU API KEY HERE';
+    const API_KEY = 'a8dee79a-8f00-44a5-b5ab-ce734c69b770';
     const V_1_2 = '/v1.2/';
     const V_1_4 = '/v1.4/';
     const V_1_3 = '/v1.3/';
     const V_2_5 = '/v2.5/';
     const V_2_2 = '/v2.2/';
     const V_2_4 = '/v2.4/';
+    const NO_RESULT = false;
+    const ERR_FALSE = false;
 
     public function __construct($region)
     {
@@ -26,6 +36,9 @@ class jrapi
         $this->_url = 'https://'.$this->_region.'.api.pvp.net/api/lol/'.$this->_region;
     }
 
+    /*
+     * fais une requete au serveur de lol et renvoi un tableau conetenant sois les info demander ou un code derreur avec une definition
+     */
     public function request($url)
     {
         $ch = curl_init($url);
@@ -36,12 +49,19 @@ class jrapi
 
         $rep = json_decode($result,true);
 
+        $errTest = $this->err_test($rep); // on execute la fonction pour savoir si dans la requete ($rep) il y a un code derreur
+
+        if($errTest != self::ERR_FALSE) //si il a presence dun code derreur on $rep vaut maintenant un array contenant le code derreur et son explication
+            $rep = $errTest;
+
         return $rep;
     }
 
     //retourne le id d'un summoner
     public function getSummonerIdByName($name)
     {
+        $result = '';
+
         if(is_string($name))
         {
             $name = strtolower($name);
@@ -49,7 +69,13 @@ class jrapi
             $name = rawurlencode($name);
             $url = $this->_url.jrapi::V_1_4.'summoner/by-name/'.$name.'?api_key='.jrapi::API_KEY;
             $rep = $this->request($url);
-            return $rep[$name]['id'];
+
+            if(isset($rep[$name]))
+                $result = $rep[$name]['id'];
+            else
+                $result = $rep;
+
+            return $result;
         }
         else
             trigger_error('Le parametre name doit abosulement etre de type string' , E_USER_WARNING);
@@ -63,15 +89,21 @@ class jrapi
         {
             $url = $this->_url.jrapi::V_1_4.'summoner/'.$id.'?api_key='.jrapi::API_KEY;
             $rep = $this->request($url);
-            return $rep[$id]['name'];
+
+            var_dump($rep);
+
+            if(isset($rep[$id]['name']))
+                return $rep[$id]['name'];
+            else
+                return $rep;
         }
         else
             trigger_error('Le parametre id doit absolument etre de type int' , E_USER_WARNING);
     }
 
-
     /*
      * retourne un tableau contenant les stats desirer pour la saison 16
+     * peu retourner false dans le cas ou un id existe mais quil na pas de stats pour le $nb specifier
      *
      * 2ieme parametre:
      * -1 pour retourner le tableau au complet
@@ -93,12 +125,62 @@ class jrapi
             $rep = $this->request($url);
 
             if($nb == -1)
-                return $rep;
+                $result = $rep;
+            else if($nb > -1 && $nb < 9)
+            {
+                if(isset( $rep['playerStatSummaries'][$nb]))
+                    $result =  $rep['playerStatSummaries'][$nb];
+                else
+                    $result = self::NO_RESULT;
+            }
+
             else
-                return $rep['playerStatSummaries'][$nb];
+                $result = trigger_error('NB doit etre un chiffre entre 0 compris et 8 compris' , E_USER_WARNING);
         }
         else
-            trigger_error('Les variable nb et id se doivent d\'etre de type int' , E_USER_WARNING);
+            $result = trigger_error('le id doit absoluement etre un chiffre' , E_USER_WARNING);
+
+        return $result;
+    }
+
+    /*
+     * teste si il y a presence ou non derreur dans un tableau
+     */
+    public function err_test($varToTest)
+    {
+
+        if(isset($varToTest['status']['status_code']))
+        {
+            $statusCode = $varToTest['status']['status_code'];
+
+            for($i = 0 ; $i <= count($this->_error) -1 ; $i++)
+            {
+                if($statusCode == $this->_error[$i])
+                    return array(
+                        $this->_error[$i] => $varToTest['status']['message']
+                    );
+                else
+                    $result = self::ERR_FALSE;
+            }
+        }
+        else
+            $result = self::ERR_FALSE;
+
+        return $result;
+    }
+
+    //retourne faux si il na pas derreur et true si il a une erreur
+    public function checkReturn($var)
+    {
+        $error = false;
+
+        for($i = 0 ; $i <= count($this->_error) -1 ; $i++)
+        {
+            if(isset($var[$this->_error[$i]]))
+                $error = true;
+        }
+
+        return $error;
     }
 
 }
