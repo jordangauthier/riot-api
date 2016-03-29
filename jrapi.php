@@ -10,7 +10,7 @@ class jrapi
 {
     private $_region;
     private $_url;
-    private  $_error = array(
+    private $_error = array(
         '400',
         '401',
         '404',
@@ -29,6 +29,7 @@ class jrapi
     const V_2_4 = '/v2.4/';
     const NO_RESULT = false;
     const ERR_FALSE = false;
+    const NB_FREE_CHAMP = 9;
 
     public function __construct($region)
     {
@@ -55,6 +56,55 @@ class jrapi
             $rep = $errTest;
 
         return $rep;
+    }
+
+    //retourne un tableau contenant les id des free champion de la semaine
+    public function getFreeChampId()
+    {
+        $url = $this->_url.self::V_1_2.'champion?freeToPlay=true&api_key='.self::API_KEY;
+        $rep = $this->request($url);
+
+        $idArray = array();
+
+        for($i = 0 ; $i <= self::NB_FREE_CHAMP ; $i++)
+            array_push($idArray , $rep['champions'][$i]['id']);
+
+        return $idArray;
+    }
+
+    //renvoie les nom des champion ou true si erreur
+    public function getFreeChampName(array $idTab)
+    {
+        foreach($idTab as $cle => $ele)
+        {
+            if(!is_int($cle))
+                return trigger_error('Les cle du tableau passer en parametre doive etre de type int' , E_USER_WARNING);
+        }
+
+        for($i = 0 ; $i <= count($idTab) -1 ; $i++)
+        {
+            $idTab[$i] = $this->getChampName($idTab[$i]);
+
+            $test = $this->checkReturn($idTab[$i]);
+
+            if($test)
+                return $result = $test;
+        }
+
+        return $idTab;
+    }
+
+    public function getChampName($idChamp)
+    {
+        $url = 'https://global.api.pvp.net/api/lol/static-data/'.$this->_region.self::V_1_2.'champion/'.$idChamp.'?api_key='.self::API_KEY;
+        $rep = $this->request($url);
+
+        if(isset($rep['name']))
+            $result = $rep['name'];
+        else
+            $result = $rep;
+
+        return $result;
     }
 
     //retourne le id d'un summoner
@@ -89,8 +139,6 @@ class jrapi
         {
             $url = $this->_url.jrapi::V_1_4.'summoner/'.$id.'?api_key='.jrapi::API_KEY;
             $rep = $this->request($url);
-
-            var_dump($rep);
 
             if(isset($rep[$id]['name']))
                 return $rep[$id]['name'];
@@ -182,5 +230,4 @@ class jrapi
 
         return $error;
     }
-
 }
