@@ -20,7 +20,7 @@ class jrapi
     );
 
     //api key
-    const API_KEY = 'a8dee79a-8f00-44a5-b5ab-ce734c69b770';
+    const API_KEY = 'YOU API KEY HERE';
     const V_1_2 = '/v1.2/';
     const V_1_4 = '/v1.4/';
     const V_1_3 = '/v1.3/';
